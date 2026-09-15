@@ -1,0 +1,2501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Pokémon Auction - Battle Arena</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Poppins:wght@400;500;600;700;800&display=swap');
+
+/* =========================================================
+RESET
+========================================================= */
+
+* {
+box-sizing: border-box;
+}
+
+html,
+body {
+margin: 0;
+width: 100%;
+height: 100%;
+}
+
+body {
+font-family: 'Poppins', sans-serif;
+color: white;
+overflow: hidden;
+
+/*
+PUT YOUR IMAGE HERE:
+
+public/images/setup-battlefield.jpg
+*/
+
+background:
+linear-gradient(
+rgba(2, 10, 8, 0.28),
+rgba(2, 8, 12, 0.42)
+),
+url("/images/setup-battlefield.jpg");
+
+background-size: cover;
+background-position: center;
+background-repeat: no-repeat;
+background-attachment: fixed;
+
+position: relative;
+}
+
+
+/* =========================================================
+DARK BATTLEFIELD OVERLAY
+========================================================= */
+
+body::before {
+content: "";
+position: fixed;
+inset: 0;
+
+pointer-events: none;
+
+background:
+linear-gradient(
+90deg,
+rgba(0,0,0,0.42),
+transparent 20%,
+transparent 80%,
+rgba(0,0,0,0.42)
+);
+
+z-index: 0;
+}
+
+
+body::after {
+content: "";
+
+position: fixed;
+inset: 0;
+
+pointer-events: none;
+
+background:
+repeating-linear-gradient(
+0deg,
+rgba(255,255,255,0.018) 0px,
+rgba(255,255,255,0.018) 1px,
+transparent 1px,
+transparent 5px
+);
+
+z-index: 20;
+
+opacity: 0.55;
+}
+
+
+/* =========================================================
+VIGNETTE
+========================================================= */
+
+.vignette {
+position: fixed;
+inset: 0;
+
+pointer-events: none;
+
+background:
+radial-gradient(
+ellipse at center,
+transparent 40%,
+rgba(0,0,0,0.25) 75%,
+rgba(0,0,0,0.68) 100%
+);
+
+z-index: 1;
+}
+
+
+/* =========================================================
+MOVING LIGHT
+========================================================= */
+
+.light-sweep {
+position: fixed;
+
+width: 70%;
+height: 200%;
+
+top: -50%;
+left: -80%;
+
+pointer-events: none;
+
+background:
+linear-gradient(
+90deg,
+transparent,
+rgba(255,255,255,0.055),
+transparent
+);
+
+transform: rotate(20deg);
+
+animation: sweep 9s linear infinite;
+
+z-index: 2;
+}
+
+@keyframes sweep {
+
+0% {
+left: -90%;
+}
+
+100% {
+left: 130%;
+}
+}
+
+
+/* =========================================================
+PARTICLES
+========================================================= */
+
+.particles {
+position: fixed;
+inset: 0;
+
+pointer-events: none;
+
+z-index: 3;
+}
+
+.particle {
+position: absolute;
+
+width: 4px;
+height: 4px;
+
+border-radius: 50%;
+
+background: rgba(255,255,255,0.75);
+
+box-shadow:
+0 0 8px rgba(255,255,255,0.9),
+0 0 18px rgba(50,200,255,0.7);
+
+animation:
+particleFloat 7s infinite ease-in-out;
+}
+
+.particle:nth-child(1) {
+left: 7%;
+top: 30%;
+animation-delay: 0s;
+}
+
+.particle:nth-child(2) {
+left: 17%;
+top: 70%;
+animation-delay: 2s;
+}
+
+.particle:nth-child(3) {
+left: 32%;
+top: 20%;
+animation-delay: 1s;
+}
+
+.particle:nth-child(4) {
+left: 68%;
+top: 25%;
+animation-delay: 3s;
+}
+
+.particle:nth-child(5) {
+left: 83%;
+top: 65%;
+animation-delay: 1.5s;
+}
+
+.particle:nth-child(6) {
+left: 92%;
+top: 35%;
+animation-delay: 4s;
+}
+
+@keyframes particleFloat {
+
+0%,
+100% {
+transform:
+translateY(0)
+scale(0.7);
+
+opacity: 0.2;
+}
+
+50% {
+transform:
+translateY(-45px)
+scale(1.5);
+
+opacity: 1;
+}
+}
+
+
+/* =========================================================
+MAIN ARENA
+========================================================= */
+
+.arena {
+position: relative;
+
+width: 100%;
+height: 100vh;
+
+z-index: 5;
+}
+
+
+/* =========================================================
+TOP TITLE
+========================================================= */
+
+.title-area {
+position: absolute;
+
+top: 4%;
+left: 50%;
+
+transform: translateX(-50%);
+
+text-align: center;
+
+width: 90%;
+
+z-index: 10;
+}
+
+.eyebrow {
+font-family: 'Orbitron', sans-serif;
+
+font-size: 11px;
+
+letter-spacing: 5px;
+
+font-weight: 700;
+
+color: #ffe76a;
+
+text-shadow:
+0 0 8px rgba(255,220,70,0.8),
+0 0 20px rgba(255,190,30,0.5);
+
+margin-bottom: 7px;
+}
+
+h1 {
+margin: 0;
+
+font-family: 'Orbitron', sans-serif;
+
+font-size: clamp(28px, 5vw, 58px);
+
+font-weight: 900;
+
+letter-spacing: 3px;
+
+line-height: 1;
+
+background:
+linear-gradient(
+90deg,
+#ffffff,
+#65dfff,
+#ffe44f,
+#ffffff
+);
+
+background-size: 300% 100%;
+
+-webkit-background-clip: text;
+background-clip: text;
+
+-webkit-text-fill-color: transparent;
+
+animation:
+titleGradient 5s linear infinite;
+
+filter:
+drop-shadow(0 0 8px rgba(0,210,255,0.45));
+}
+
+@keyframes titleGradient {
+
+from {
+background-position: 0% 50%;
+}
+
+to {
+background-position: 300% 50%;
+}
+}
+
+.subtitle {
+margin-top: 10px;
+
+font-size: 13px;
+
+font-weight: 500;
+
+letter-spacing: 1.5px;
+
+color: rgba(255,255,255,0.85);
+
+text-shadow:
+0 2px 5px rgba(0,0,0,0.9);
+}
+
+
+/* =========================================================
+CENTER DIVIDER
+========================================================= */
+
+.center-core {
+position: absolute;
+
+left: 50%;
+top: 45%;
+
+transform: translate(-50%, -50%);
+
+width: 112px;
+height: 112px;
+
+border-radius: 50%;
+
+z-index: 9;
+
+pointer-events: none;
+}
+
+.center-core::before {
+content: "";
+
+position: absolute;
+
+inset: 0;
+
+border-radius: 50%;
+
+border:
+2px solid rgba(255,255,255,0.28);
+
+box-shadow:
+0 0 20px rgba(255,255,255,0.18),
+inset 0 0 20px rgba(255,255,255,0.08);
+
+animation: corePulse 2.5s ease-in-out infinite;
+}
+
+.center-core::after {
+content: "VS";
+
+position: absolute;
+
+inset: 12px;
+
+border-radius: 50%;
+
+display: flex;
+
+align-items: center;
+justify-content: center;
+
+font-family: 'Orbitron', sans-serif;
+
+font-size: 17px;
+
+font-weight: 900;
+
+color: white;
+
+background:
+radial-gradient(
+circle,
+rgba(20,35,40,0.95),
+rgba(3,10,14,0.92)
+);
+
+border:
+2px solid rgba(255,220,70,0.7);
+
+box-shadow:
+0 0 18px rgba(255,215,60,0.4),
+inset 0 0 15px rgba(0,220,255,0.15);
+}
+
+@keyframes corePulse {
+
+0%,
+100% {
+transform: scale(0.94);
+opacity: 0.7;
+}
+
+50% {
+transform: scale(1.08);
+opacity: 1;
+}
+}
+
+
+/* =========================================================
+BATTLE CIRCLES
+========================================================= */
+
+.battle-zone {
+
+position: absolute;
+
+top: 48%;
+
+width: 40vw;
+height: 40vw;
+
+max-width: 520px;
+max-height: 520px;
+
+min-width: 300px;
+min-height: 300px;
+
+transform: translateY(-50%);
+
+display: flex;
+
+align-items: center;
+justify-content: center;
+
+z-index: 7;
+}
+
+
+/* LEFT */
+
+.create-zone {
+left: 8%;
+}
+
+
+/* RIGHT */
+
+.join-zone {
+right: 8%;
+}
+
+
+/* =========================================================
+OUTER ENERGY RINGS
+========================================================= */
+
+.energy-ring {
+position: absolute;
+
+width: 100%;
+height: 100%;
+
+border-radius: 50%;
+
+border:
+2px solid rgba(255,255,255,0.20);
+
+box-shadow:
+0 0 20px rgba(0,220,255,0.18),
+inset 0 0 30px rgba(0,220,255,0.08);
+
+transition:
+transform 0.5s ease,
+box-shadow 0.5s ease;
+}
+
+.battle-zone:hover .energy-ring {
+transform: scale(1.04);
+
+box-shadow:
+0 0 35px rgba(0,220,255,0.32),
+inset 0 0 35px rgba(0,220,255,0.12);
+}
+
+
+.energy-ring::before,
+.energy-ring::after {
+content: "";
+
+position: absolute;
+
+inset: 6%;
+
+border-radius: 50%;
+
+border:
+1px solid rgba(255,255,255,0.13);
+}
+
+.energy-ring::after {
+inset: 12%;
+
+border:
+1px dashed rgba(255,230,70,0.22);
+
+animation:
+rotateRing 18s linear infinite;
+}
+
+@keyframes rotateRing {
+
+from {
+transform: rotate(0deg);
+}
+
+to {
+transform: rotate(360deg);
+}
+}
+
+
+/* =========================================================
+MAIN BATTLE PANEL
+========================================================= */
+
+.battle-panel {
+
+position: relative;
+
+width: 74%;
+height: 74%;
+
+border-radius: 50%;
+
+display: flex;
+
+flex-direction: column;
+
+align-items: center;
+
+justify-content: center;
+
+padding: 45px;
+
+text-align: center;
+
+background:
+radial-gradient(
+circle at 50% 35%,
+rgba(20,45,50,0.78),
+rgba(3,13,17,0.91) 70%
+);
+
+border:
+2px solid rgba(255,255,255,0.25);
+
+box-shadow:
+0 0 35px rgba(0,0,0,0.7),
+inset 0 0 30px rgba(0,200,255,0.09);
+
+backdrop-filter: blur(8px);
+
+transition:
+transform 0.4s ease,
+border-color 0.4s ease,
+box-shadow 0.4s ease;
+
+overflow: hidden;
+}
+
+.battle-panel::before {
+content: "";
+
+position: absolute;
+
+inset: 7%;
+
+border-radius: 50%;
+
+border:
+1px solid rgba(255,255,255,0.12);
+
+pointer-events: none;
+}
+
+.battle-panel::after {
+content: "";
+
+position: absolute;
+
+width: 180%;
+height: 25%;
+
+left: -40%;
+top: 45%;
+
+transform: rotate(-12deg);
+
+background:
+linear-gradient(
+90deg,
+transparent,
+rgba(255,255,255,0.08),
+transparent
+);
+
+animation: panelSweep 5s linear infinite;
+
+pointer-events: none;
+}
+
+@keyframes panelSweep {
+
+from {
+transform:
+translateX(-80%)
+rotate(-12deg);
+}
+
+to {
+transform:
+translateX(80%)
+rotate(-12deg);
+}
+}
+
+
+/* =========================================================
+CREATE / JOIN COLORING
+========================================================= */
+
+.create-zone .battle-panel {
+border-color:
+rgba(255,80,70,0.55);
+
+box-shadow:
+0 0 35px rgba(255,60,40,0.20),
+inset 0 0 35px rgba(255,50,40,0.08);
+}
+
+.create-zone:hover .battle-panel {
+transform: scale(1.045);
+
+border-color:
+rgba(255,105,75,0.9);
+
+box-shadow:
+0 0 55px rgba(255,60,40,0.35),
+inset 0 0 45px rgba(255,60,40,0.13);
+}
+
+
+.join-zone .battle-panel {
+border-color:
+rgba(60,190,255,0.58);
+
+box-shadow:
+0 0 35px rgba(0,180,255,0.20),
+inset 0 0 35px rgba(0,180,255,0.08);
+}
+
+.join-zone:hover .battle-panel {
+transform: scale(1.045);
+
+border-color:
+rgba(70,220,255,0.95);
+
+box-shadow:
+0 0 55px rgba(0,190,255,0.38),
+inset 0 0 45px rgba(0,190,255,0.14);
+}
+
+
+/* =========================================================
+ICON
+========================================================= */
+
+.zone-icon {
+
+width: 62px;
+height: 62px;
+
+display: flex;
+
+align-items: center;
+justify-content: center;
+
+border-radius: 50%;
+
+font-size: 29px;
+
+background:
+rgba(255,255,255,0.08);
+
+border:
+2px solid rgba(255,255,255,0.25);
+
+box-shadow:
+0 0 18px rgba(255,255,255,0.12);
+
+margin-bottom: 12px;
+
+position: relative;
+
+z-index: 2;
+
+animation:
+iconFloat 3s ease-in-out infinite;
+}
+
+@keyframes iconFloat {
+
+0%,
+100% {
+transform: translateY(0);
+}
+
+50% {
+transform: translateY(-5px);
+}
+}
+
+
+/* =========================================================
+ZONE TITLES
+========================================================= */
+
+.zone-title {
+
+position: relative;
+
+z-index: 2;
+
+font-family: 'Orbitron', sans-serif;
+
+font-size: clamp(16px, 1.8vw, 25px);
+
+font-weight: 900;
+
+letter-spacing: 1px;
+
+margin-bottom: 4px;
+
+text-shadow:
+0 3px 10px rgba(0,0,0,0.9);
+}
+
+.create-zone .zone-title {
+color: #ffdc55;
+
+text-shadow:
+0 0 10px rgba(255,80,50,0.7);
+}
+
+.join-zone .zone-title {
+color: #63dcff;
+
+text-shadow:
+0 0 10px rgba(0,190,255,0.7);
+}
+
+
+.zone-description {
+
+position: relative;
+
+z-index: 2;
+
+font-size: 11px;
+
+line-height: 1.4;
+
+color: rgba(255,255,255,0.66);
+
+margin-bottom: 16px;
+
+max-width: 210px;
+}
+
+
+/* =========================================================
+INPUTS
+========================================================= */
+
+.field {
+
+position: relative;
+
+z-index: 3;
+
+width: 78%;
+
+margin-bottom: 8px;
+}
+
+/* Profile picture button — top left */
+.profile-pic-btn {
+position: fixed;
+top: 52px;
+left: 22px;
+z-index: 40;
+width: 76px;
+height: 76px;
+border-radius: 50%;
+padding: 0;
+border: 2.5px solid rgba(0, 220, 255, 0.75);
+background: rgba(0, 0, 0, 0.45);
+cursor: pointer;
+overflow: hidden;
+box-shadow:
+0 0 16px rgba(0, 220, 255, 0.45),
+0 0 32px rgba(0, 180, 255, 0.25),
+0 4px 16px rgba(0, 0, 0, 0.5);
+animation: profileGlow 2.4s ease-in-out infinite;
+transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+@keyframes profileGlow {
+0%, 100% {
+box-shadow:
+0 0 14px rgba(0, 220, 255, 0.4),
+0 0 28px rgba(0, 180, 255, 0.2),
+0 4px 16px rgba(0, 0, 0, 0.5);
+border-color: rgba(0, 220, 255, 0.7);
+}
+50% {
+box-shadow:
+0 0 22px rgba(0, 240, 255, 0.7),
+0 0 40px rgba(255, 216, 77, 0.25),
+0 4px 16px rgba(0, 0, 0, 0.5);
+border-color: rgba(126, 240, 255, 0.95);
+}
+}
+
+.profile-pic-btn img {
+width: 100%;
+height: 100%;
+object-fit: cover;
+display: block;
+}
+
+.profile-pic-btn:hover {
+transform: scale(1.08);
+border-color: #ffd84d;
+animation: none;
+box-shadow:
+0 0 24px rgba(255, 216, 77, 0.55),
+0 0 36px rgba(0, 220, 255, 0.35),
+0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* Avatar selection modal */
+.avatar-modal-overlay {
+position: fixed;
+inset: 0;
+z-index: 100;
+display: none;
+align-items: center;
+justify-content: center;
+background: rgba(2, 8, 12, 0.72);
+backdrop-filter: blur(6px);
+}
+
+.avatar-modal-overlay.show {
+display: flex;
+}
+
+.avatar-modal-panel {
+width: min(440px, 92vw);
+max-height: min(80vh, 560px);
+padding: 28px 24px 22px;
+border-radius: 18px;
+background:
+linear-gradient(160deg, rgba(8, 28, 36, 0.95), rgba(4, 12, 18, 0.96));
+border: 1px solid rgba(0, 220, 255, 0.35);
+box-shadow:
+0 0 40px rgba(0, 220, 255, 0.18),
+0 16px 48px rgba(0, 0, 0, 0.55);
+text-align: center;
+display: flex;
+flex-direction: column;
+}
+
+.avatar-modal-title {
+font-family: 'Orbitron', sans-serif;
+font-size: 18px;
+font-weight: 900;
+letter-spacing: 2px;
+color: #7ef0ff;
+text-shadow: 0 0 16px rgba(0, 220, 255, 0.45);
+margin-bottom: 6px;
+flex-shrink: 0;
+}
+
+.avatar-modal-sub {
+font-size: 12px;
+color: rgba(255, 255, 255, 0.55);
+margin-bottom: 16px;
+flex-shrink: 0;
+}
+
+.avatar-modal-grid {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 12px;
+max-width: 360px;
+margin: 0 auto;
+overflow-y: auto;
+max-height: min(48vh, 340px);
+padding: 4px 6px 8px;
+flex: 1 1 auto;
+scrollbar-width: thin;
+scrollbar-color: rgba(0, 220, 255, 0.45) transparent;
+}
+
+.avatar-modal-grid::-webkit-scrollbar {
+width: 6px;
+}
+.avatar-modal-grid::-webkit-scrollbar-thumb {
+background: rgba(0, 220, 255, 0.4);
+border-radius: 4px;
+}
+
+.avatar-modal-option {
+width: 100%;
+aspect-ratio: 1;
+border-radius: 50%;
+overflow: hidden;
+border: 2px solid rgba(255, 255, 255, 0.22);
+cursor: pointer;
+padding: 0;
+background: rgba(0, 0, 0, 0.4);
+transition: transform 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;
+will-change: transform;
+}
+
+.avatar-modal-option img {
+width: 100%;
+height: 100%;
+object-fit: cover;
+display: block;
+pointer-events: none;
+}
+
+.avatar-modal-option:hover {
+transform: scale(1.06);
+border-color: rgba(0, 220, 255, 0.75);
+}
+
+.avatar-modal-option.selected {
+border-color: #ffd84d;
+box-shadow:
+0 0 14px rgba(255, 216, 77, 0.55),
+0 0 22px rgba(0, 220, 255, 0.3);
+transform: scale(1.08);
+}
+
+.avatar-modal-close {
+margin-top: 16px;
+font-family: 'Orbitron', sans-serif;
+font-size: 13px;
+font-weight: 800;
+letter-spacing: 2px;
+color: #041018;
+background: linear-gradient(135deg, #7ef0ff, #3ad0ff);
+border: none;
+border-radius: 24px;
+padding: 10px 28px;
+cursor: pointer;
+box-shadow: 0 0 18px rgba(0, 220, 255, 0.35);
+transition: transform 0.15s ease, box-shadow 0.15s ease;
+flex-shrink: 0;
+align-self: center;
+}
+
+.avatar-modal-close:hover {
+transform: scale(1.04);
+box-shadow: 0 0 24px rgba(0, 220, 255, 0.5);
+}
+
+.field input,
+.field select {
+
+width: 100%;
+
+padding: 10px 14px;
+
+border-radius: 25px;
+
+border:
+1px solid rgba(255,255,255,0.20);
+
+background:
+rgba(0,0,0,0.48);
+
+color: white;
+
+outline: none;
+
+font-family: 'Poppins', sans-serif;
+
+font-size: 11px;
+
+text-align: center;
+
+transition:
+border-color 0.2s ease,
+box-shadow 0.2s ease,
+background 0.2s ease;
+}
+
+.field input::placeholder {
+color: rgba(255,255,255,0.45);
+}
+
+.field input:focus,
+.field select:focus {
+
+background:
+rgba(0,0,0,0.65);
+
+border-color:
+rgba(255,220,70,0.75);
+
+box-shadow:
+0 0 15px rgba(255,210,50,0.15);
+}
+
+.field select option {
+background: #101b1d;
+color: white;
+}
+
+
+/* =========================================================
+BATTLE BUTTON
+========================================================= */
+
+.battle-button {
+
+position: relative;
+
+z-index: 5;
+
+width: 78%;
+
+padding: 11px 15px;
+
+margin-top: 5px;
+
+border: none;
+
+border-radius: 25px;
+
+color: white;
+
+font-family: 'Orbitron', sans-serif;
+
+font-size: 11px;
+
+font-weight: 900;
+
+letter-spacing: 1px;
+
+cursor: pointer;
+
+overflow: hidden;
+
+display: flex;
+align-items: center;
+justify-content: center;
+text-align: center;
+
+line-height: 1;
+
+transition:
+transform 0.2s ease,
+filter 0.2s ease,
+box-shadow 0.2s ease;
+}
+
+.battle-button::before {
+
+content: "";
+
+position: absolute;
+
+width: 50%;
+height: 250%;
+
+top: -75%;
+left: -80%;
+
+transform: rotate(25deg);
+
+background:
+linear-gradient(
+90deg,
+transparent,
+rgba(255,255,255,0.35),
+transparent
+);
+
+transition: left 0.5s ease;
+}
+
+.battle-button:hover::before {
+left: 130%;
+}
+
+.battle-button:hover {
+
+transform:
+translateY(-2px)
+scale(1.02);
+
+filter: brightness(1.15);
+}
+
+.battle-button:active {
+transform: scale(0.97);
+}
+
+
+.create-button {
+
+background:
+linear-gradient(
+135deg,
+#e72e2e,
+#ff7138
+);
+
+box-shadow:
+0 7px 20px rgba(255,60,40,0.32),
+inset 0 1px rgba(255,255,255,0.25);
+}
+
+
+.join-button {
+
+background:
+linear-gradient(
+135deg,
+#087cff,
+#6552ff
+);
+
+box-shadow:
+0 7px 20px rgba(30,110,255,0.32),
+inset 0 1px rgba(255,255,255,0.25);
+}
+
+
+/* =========================================================
+SMALL LABEL
+========================================================= */
+
+.mini-label {
+
+position: relative;
+
+z-index: 2;
+
+font-size: 8px;
+
+letter-spacing: 2px;
+
+text-transform: uppercase;
+
+color: rgba(255,255,255,0.42);
+
+margin-top: 8px;
+}
+
+
+/* =========================================================
+ERROR
+========================================================= */
+
+#error {
+
+position: fixed;
+
+left: 50%;
+bottom: 4%;
+
+transform: translateX(-50%);
+
+min-height: 28px;
+
+width: min(90%, 600px);
+
+text-align: center;
+
+color: #ff8585;
+
+font-size: 13px;
+
+font-weight: 700;
+
+text-shadow:
+0 0 10px rgba(255,50,50,0.7);
+
+z-index: 30;
+
+pointer-events: none;
+}
+
+
+/* =========================================================
+FOOTER
+========================================================= */
+
+.footer {
+
+position: fixed;
+
+bottom: 1.8%;
+
+left: 50%;
+
+transform: translateX(-50%);
+
+font-size: 9px;
+
+letter-spacing: 2px;
+
+color: rgba(255,255,255,0.45);
+
+text-transform: uppercase;
+
+z-index: 8;
+
+white-space: nowrap;
+}
+
+
+/* =========================================================
+CORNER HUD
+========================================================= */
+
+.hud {
+
+position: fixed;
+
+z-index: 8;
+
+font-family: 'Orbitron', sans-serif;
+
+font-size: 8px;
+
+letter-spacing: 2px;
+
+color: rgba(255,255,255,0.55);
+
+text-transform: uppercase;
+}
+
+.hud-top-left {
+top: 3%;
+left: 2.5%;
+}
+
+.hud-top-right {
+top: 3%;
+right: 2.5%;
+}
+
+.hud-bottom-left {
+bottom: 3%;
+left: 2.5%;
+}
+
+.hud-bottom-right {
+bottom: 3%;
+right: 2.5%;
+}
+
+.status-dot {
+
+display: inline-block;
+
+width: 6px;
+height: 6px;
+
+border-radius: 50%;
+
+margin-right: 6px;
+
+background: #55ff9b;
+
+box-shadow:
+0 0 8px #55ff9b;
+
+animation:
+statusPulse 1.5s infinite;
+}
+
+@keyframes statusPulse {
+
+0%,
+100% {
+opacity: 0.5;
+}
+
+50% {
+opacity: 1;
+}
+}
+
+
+/* =========================================================
+MOBILE
+========================================================= */
+
+@media (max-width: 900px) {
+
+body {
+overflow-y: auto;
+}
+
+.arena {
+min-height: 100vh;
+height: auto;
+padding-top: 110px;
+padding-bottom: 50px;
+}
+
+.title-area {
+position: relative;
+
+top: auto;
+left: auto;
+
+transform: none;
+
+margin: 0 auto 15px;
+}
+
+.battle-zone {
+
+position: relative;
+
+top: auto;
+left: auto;
+right: auto;
+
+transform: none;
+
+width: 88vw;
+height: 88vw;
+
+max-width: 420px;
+max-height: 420px;
+
+margin: 15px auto;
+}
+
+.create-zone,
+.join-zone {
+left: auto;
+right: auto;
+}
+
+.center-core {
+display: none;
+}
+
+.footer {
+position: relative;
+
+bottom: auto;
+left: auto;
+
+transform: none;
+
+text-align: center;
+
+margin: 10px auto 20px;
+}
+
+.hud {
+display: none;
+}
+
+#error {
+position: fixed;
+bottom: 10px;
+}
+}
+
+
+/* =========================================================
+SMALL PHONES
+========================================================= */
+
+@media (max-width: 500px) {
+
+h1 {
+font-size: 25px;
+letter-spacing: 1px;
+}
+
+.subtitle {
+font-size: 10px;
+}
+
+.battle-zone {
+width: 94vw;
+height: 94vw;
+}
+
+.battle-panel {
+width: 76%;
+height: 76%;
+}
+
+.zone-icon {
+width: 48px;
+height: 48px;
+
+font-size: 22px;
+}
+
+.zone-title {
+font-size: 15px;
+}
+
+.zone-description {
+font-size: 9px;
+margin-bottom: 10px;
+}
+
+.field,
+.battle-button {
+width: 80%;
+}
+
+.field input,
+.field select {
+padding: 8px 10px;
+font-size: 10px;
+}
+
+.battle-button {
+padding: 9px;
+font-size: 9px;
+}
+}
+
+
+/* =========================================================
+REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+*,
+*::before,
+*::after {
+animation-duration: 0.001ms !important;
+animation-iteration-count: 1 !important;
+}
+}
+/* ======================================================
+POKEMON MUSIC BUTTON
+====================================================== */
+
+.music-toggle {
+position: fixed;
+right: 25px;
+bottom: 25px;
+
+z-index: 999999;
+
+width: 165px;
+height: 55px;
+
+border: 3px solid #222;
+border-radius: 30px;
+
+background: linear-gradient(
+145deg,
+#ffffff,
+#e8e8e8
+);
+
+color: #222;
+
+font-family: inherit;
+font-size: 12px;
+font-weight: 900;
+
+letter-spacing: 1px;
+
+cursor: pointer;
+user-select: none;
+
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 9px;
+
+box-shadow:
+0 5px 0 #222,
+0 8px 15px rgba(0,0,0,0.35);
+
+transition:
+transform 0.15s ease,
+box-shadow 0.15s ease,
+background 0.2s ease;
+}
+
+.music-icon {
+width: 34px;
+height: 34px;
+
+display: flex;
+align-items: center;
+justify-content: center;
+
+font-size: 22px;
+
+border-radius: 50%;
+
+background: #ff4d6d;
+
+border: 2px solid #222;
+
+box-shadow:
+0 2px 0 #222;
+}
+
+.music-text {
+min-width: 80px;
+text-align: center;
+}
+
+.music-toggle:hover {
+transform: translateY(-2px);
+
+box-shadow:
+0 7px 0 #222,
+0 10px 18px rgba(0,0,0,0.4);
+}
+
+.music-toggle:active {
+transform: translateY(3px);
+
+box-shadow:
+0 2px 0 #222,
+0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* MUSIC ON */
+
+.music-toggle.music-on {
+background: linear-gradient(
+145deg,
+#fff,
+#f7f7f7
+);
+}
+
+.music-toggle.music-on .music-icon {
+background: #ffd93d;
+}
+
+/* MUSIC OFF */
+
+.music-toggle.music-off {
+background: linear-gradient(
+145deg,
+#d7d7d7,
+#bdbdbd
+);
+
+color: #555;
+}
+
+.music-toggle.music-off .music-icon {
+background: #aaa;
+filter: grayscale(1);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+</style>
+</head>
+
+
+<body>
+
+
+<!-- ======================================================
+BACKGROUND EFFECTS
+======================================================= -->
+
+<div class="vignette"></div>
+
+<div class="light-sweep"></div>
+
+<div class="particles">
+
+<div class="particle"></div>
+<div class="particle"></div>
+<div class="particle"></div>
+<div class="particle"></div>
+<div class="particle"></div>
+<div class="particle"></div>
+
+</div>
+
+
+<!-- ======================================================
+HUD
+======================================================= -->
+
+<div class="hud hud-top-left">
+POKÉMON AUCTION // ARENA
+</div>
+
+<!-- Profile picture (session avatar) -->
+<button type="button" class="profile-pic-btn" id="profilePicBtn" title="Choose profile picture">
+  <img id="profilePicImg" src="/images/avatars/avatar-01.png" alt="Profile">
+</button>
+
+<!-- Avatar selection panel -->
+<div class="avatar-modal-overlay" id="avatarModalOverlay">
+  <div class="avatar-modal-panel">
+    <div class="avatar-modal-title">SELECT YOUR LOGO</div>
+    <div class="avatar-modal-sub">Choose a profile picture for this session</div>
+    <div class="avatar-modal-grid" id="avatarModalGrid"></div>
+    <button type="button" class="avatar-modal-close" id="avatarModalClose">CONFIRM</button>
+  </div>
+</div>
+
+<div class="hud hud-top-right">
+<span class="status-dot"></span>
+ONLINE
+</div>
+
+<div class="hud hud-bottom-left">
+SYSTEM // READY
+</div>
+
+<div class="hud hud-bottom-right">
+BATTLE NETWORK
+</div>
+
+
+<!-- ======================================================
+MAIN ARENA
+======================================================= -->
+
+<div class="arena">
+
+
+<!-- ==================================================
+TITLE
+=================================================== -->
+
+<div class="title-area">
+
+<div class="eyebrow">
+MULTIPLAYER BATTLE ARENA
+</div>
+
+<h1>
+POKÉMON AUCTION
+</h1>
+
+<div class="subtitle">
+Build your team. Outsmart your rivals. Become the Champion.
+</div>
+
+</div>
+
+
+<!-- ==================================================
+CENTER VS
+=================================================== -->
+
+<div class="center-core"></div>
+
+
+<!-- ==================================================
+CREATE LOBBY
+=================================================== -->
+
+<div class="battle-zone create-zone">
+
+<div class="energy-ring"></div>
+
+<div class="battle-panel">
+
+<div class="zone-icon">
+⚔️
+</div>
+
+<div class="zone-title">
+CREATE LOBBY
+</div>
+
+<div class="zone-description">
+Create a new battle arena and become its Host.
+</div>
+
+
+<div class="field">
+
+<input
+id="createName"
+type="text"
+placeholder="TRAINER NAME"
+maxlength="20"
+autocomplete="off"
+>
+
+</div>
+
+<div class="field">
+
+<select id="maxPlayers">
+
+<option value="2">
+2 PLAYERS
+</option>
+
+<option value="3">
+3 PLAYERS
+</option>
+
+<option value="4" selected>
+4 PLAYERS
+</option>
+
+<option value="5">
+5 PLAYERS
+</option>
+
+<option value="6">
+6 PLAYERS
+</option>
+
+<option value="7">
+7 PLAYERS
+</option>
+
+<option value="8">
+8 PLAYERS
+</option>
+
+</select>
+
+</div>
+
+
+<button
+id="createButton"
+class="battle-button create-button"
+>
+CREATE BATTLE
+</button>
+
+<div class="mini-label">
+HOST CONTROL
+</div>
+
+</div>
+
+</div>
+
+
+<!-- ==================================================
+JOIN LOBBY
+=================================================== -->
+
+<div class="battle-zone join-zone">
+
+<div class="energy-ring"></div>
+
+<div class="battle-panel">
+
+<div class="zone-icon">
+🎯
+</div>
+
+<div class="zone-title">
+JOIN LOBBY
+</div>
+
+<div class="zone-description">
+Enter an existing battle arena and challenge your rivals.
+</div>
+
+
+<div class="field">
+
+<input
+id="joinName"
+type="text"
+placeholder="TRAINER NAME"
+maxlength="20"
+autocomplete="off"
+>
+
+</div>
+
+<div class="field">
+
+<input
+id="lobbyCode"
+type="text"
+placeholder="LOBBY CODE"
+maxlength="6"
+autocomplete="off"
+style="text-transform: uppercase;"
+>
+
+</div>
+
+
+<button
+id="joinButton"
+class="battle-button join-button"
+>
+JOIN BATTLE
+</button>
+
+<div class="mini-label">
+CHALLENGER ACCESS
+</div>
+
+</div>
+
+</div>
+
+
+</div>
+
+
+<!-- ======================================================
+ERROR MESSAGE
+======================================================= -->
+
+<div id="error"></div>
+
+
+<!-- ======================================================
+FOOTER
+======================================================= -->
+
+<div class="footer">
+Pokémon Auction • Multiplayer Battle Arena
+</div>
+
+
+<!-- ======================================================
+SOCKET.IO
+======================================================= -->
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+
+/* ===== Button click sound ===== */
+(function () {
+  var clickAudio = null;
+  function getClickAudio() {
+    if (!clickAudio) {
+      clickAudio = new Audio("/sounds/button-click.mp3");
+      clickAudio.preload = "auto";
+      clickAudio.volume = 0.45;
+    }
+    return clickAudio;
+  }
+  function playButtonClick() {
+    try {
+      var a = getClickAudio();
+      a.currentTime = 0;
+      var p = a.play();
+      if (p && typeof p.catch === "function") p.catch(function () {});
+    } catch (e) {}
+  }
+  document.addEventListener(
+    "click",
+    function (e) {
+      var btn = e.target.closest(
+        'button, input[type="button"], input[type="submit"], .action-button, .start-button, .return-lobby-btn, .exit-game-btn, .champion-continue-btn'
+      );
+      if (!btn) return;
+      if (btn.disabled) return;
+      playButtonClick();
+    },
+    true
+  );
+  window.playButtonClick = playButtonClick;
+})();
+
+</script>
+<script>
+
+
+
+
+
+
+</script>
+
+<script>
+
+/* =========================================================
+SOCKET CONNECTION
+========================================================= */
+
+const socket = io();
+
+
+/* =========================================================
+PLAYER ID
+========================================================= */
+
+let playerId =
+sessionStorage.getItem("playerId");
+
+
+if (!playerId) {
+
+playerId =
+crypto.randomUUID();
+
+sessionStorage.setItem(
+"playerId",
+playerId
+);
+}
+
+
+/* =========================================================
+REGISTER PLAYER
+========================================================= */
+
+socket.on("connect", () => {
+
+socket.emit("registerPlayer", {
+
+playerId: playerId,
+
+name:
+sessionStorage.getItem("playerName") || ""
+
+});
+
+});
+
+
+/* =========================================================
+ERROR
+========================================================= */
+
+function showError(message) {
+
+const error =
+document.getElementById("error");
+
+error.textContent = message;
+
+
+setTimeout(() => {
+
+if (error.textContent === message) {
+
+error.textContent = "";
+
+}
+
+}, 4000);
+
+}
+
+
+/* =========================================================
+AVATAR / PROFILE PICTURE
+========================================================= */
+
+let avatarFiles = [];
+let selectedAvatar =
+    sessionStorage.getItem("playerAvatar") || "";
+let avatarGridBuilt = false;
+
+function applyProfilePic() {
+    const img = document.getElementById("profilePicImg");
+    if (img && selectedAvatar) {
+        img.src =
+            "/images/avatars/" +
+            encodeURIComponent(selectedAvatar);
+    }
+}
+
+function preloadAvatars(files) {
+    files.forEach(file => {
+        const img = new Image();
+        img.src =
+            "/images/avatars/" +
+            encodeURIComponent(file);
+    });
+}
+
+function buildAvatarGrid() {
+    const grid = document.getElementById("avatarModalGrid");
+    if (!grid) return;
+
+    grid.innerHTML = "";
+    avatarFiles.forEach((file, index) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "avatar-modal-option";
+        if (file === selectedAvatar) {
+            btn.classList.add("selected");
+        }
+        btn.dataset.avatar = file;
+        btn.title = "Logo " + (index + 1);
+
+        const img = document.createElement("img");
+        img.src =
+            "/images/avatars/" +
+            encodeURIComponent(file);
+        img.alt = "Logo " + (index + 1);
+        img.loading = "eager";
+        btn.appendChild(img);
+
+        // Instant select on click (no delay)
+        btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            selectedAvatar = file;
+            sessionStorage.setItem("playerAvatar", file);
+            applyProfilePic();
+            grid.querySelectorAll(".avatar-modal-option").forEach(el => {
+                el.classList.toggle(
+                    "selected",
+                    el.dataset.avatar === file
+                );
+            });
+        });
+
+        grid.appendChild(btn);
+    });
+    avatarGridBuilt = true;
+}
+
+async function loadAvatarList() {
+    try {
+        const res = await fetch("/api/avatars");
+        const data = await res.json();
+        if (data && Array.isArray(data.avatars) && data.avatars.length) {
+            avatarFiles = data.avatars;
+        }
+    } catch (e) {
+        console.log("Avatar list fetch failed, using fallback");
+    }
+
+    if (!avatarFiles.length) {
+        avatarFiles = [
+            "avatar-01.png","avatar-02.png","avatar-03.png",
+            "avatar-04.png","avatar-05.png","avatar-06.png",
+            "avatar-07.png","avatar-08.png","avatar-09.png",
+            "avatar-10.png","avatar-11.png","avatar-12.png"
+        ];
+    }
+
+    if (!selectedAvatar || !avatarFiles.includes(selectedAvatar)) {
+        selectedAvatar = avatarFiles[0];
+        sessionStorage.setItem("playerAvatar", selectedAvatar);
+    }
+
+    applyProfilePic();
+    preloadAvatars(avatarFiles);
+    buildAvatarGrid();
+}
+
+function openAvatarModal() {
+    const overlay = document.getElementById("avatarModalOverlay");
+    if (!overlay) return;
+    if (!avatarGridBuilt) {
+        buildAvatarGrid();
+    } else {
+        // just refresh selected state
+        const grid = document.getElementById("avatarModalGrid");
+        if (grid) {
+            grid.querySelectorAll(".avatar-modal-option").forEach(el => {
+                el.classList.toggle(
+                    "selected",
+                    el.dataset.avatar === selectedAvatar
+                );
+            });
+        }
+    }
+    overlay.classList.add("show");
+}
+
+function closeAvatarModal() {
+    const overlay = document.getElementById("avatarModalOverlay");
+    if (overlay) overlay.classList.remove("show");
+}
+
+loadAvatarList();
+
+document.getElementById("profilePicBtn").addEventListener("click", openAvatarModal);
+document.getElementById("avatarModalClose").addEventListener("click", closeAvatarModal);
+document.getElementById("avatarModalOverlay").addEventListener("click", (e) => {
+    if (e.target.id === "avatarModalOverlay") closeAvatarModal();
+});
+
+
+/* =========================================================
+CREATE LOBBY
+========================================================= */
+
+document
+.getElementById("createButton")
+.addEventListener("click", () => {
+
+const name =
+document
+.getElementById("createName")
+.value
+.trim();
+
+const maxPlayers =
+parseInt(
+document
+.getElementById("maxPlayers")
+.value
+);
+
+const avatar = selectedAvatar || "avatar-01.png";
+
+if (!name) {
+showError("PLEASE ENTER YOUR TRAINER NAME.");
+document.getElementById("createName").focus();
+return;
+}
+
+sessionStorage.setItem("playerName", name);
+sessionStorage.setItem("playerAvatar", avatar);
+
+socket.emit("registerPlayer", {
+playerId: playerId,
+name: name
+});
+
+socket.emit("createLobby", {
+playerId: playerId,
+name: name,
+maxPlayers: maxPlayers,
+avatar: avatar
+});
+
+});
+
+
+/* =========================================================
+JOIN LOBBY
+========================================================= */
+
+document
+.getElementById("joinButton")
+.addEventListener("click", () => {
+
+const name =
+document
+.getElementById("joinName")
+.value
+.trim();
+
+const code =
+document
+.getElementById("lobbyCode")
+.value
+.trim()
+.toUpperCase();
+
+const avatar = selectedAvatar || "avatar-01.png";
+
+if (!name) {
+showError("PLEASE ENTER YOUR TRAINER NAME.");
+document.getElementById("joinName").focus();
+return;
+}
+
+if (!code) {
+showError("PLEASE ENTER THE LOBBY CODE.");
+document.getElementById("lobbyCode").focus();
+return;
+}
+
+if (code.length !== 6) {
+showError("LOBBY CODE MUST BE 6 CHARACTERS.");
+return;
+}
+
+sessionStorage.setItem("playerName", name);
+sessionStorage.setItem("playerAvatar", avatar);
+
+socket.emit("registerPlayer", {
+playerId: playerId,
+name: name
+});
+
+socket.emit("joinLobby", {
+playerId: playerId,
+name: name,
+code: code,
+avatar: avatar
+});
+
+});
+
+
+/* =========================================================
+LOBBY CREATED
+========================================================= */
+
+socket.on("lobbyCreated", (data) => {
+
+sessionStorage.setItem(
+"lobbyCode",
+data.code
+);
+
+window.location.href = "/lobby.html";
+
+});
+
+
+/* =========================================================
+LOBBY JOINED
+========================================================= */
+
+socket.on("lobbyJoined", (data) => {
+
+sessionStorage.setItem(
+"lobbyCode",
+data.code
+);
+
+window.location.href = "/lobby.html";
+
+});
+
+
+/* =========================================================
+SERVER ERROR
+========================================================= */
+
+socket.on("lobbyError", (message) => {
+
+showError(
+message
+);
+
+});
+
+
+/* =========================================================
+ENTER KEY SUPPORT
+========================================================= */
+
+document
+.getElementById("createName")
+.addEventListener("keydown", (event) => {
+
+if (event.key === "Enter") {
+
+document
+.getElementById("createButton")
+.click();
+
+}
+
+});
+
+
+document
+.getElementById("joinName")
+.addEventListener("keydown", (event) => {
+
+if (event.key === "Enter") {
+
+document
+.getElementById("joinButton")
+.click();
+
+}
+
+});
+
+
+document
+.getElementById("lobbyCode")
+.addEventListener("keydown", (event) => {
+
+if (event.key === "Enter") {
+
+document
+.getElementById("joinButton")
+.click();
+
+}
+
+});
+
+
+/* =========================================================
+FORCE LOBBY CODE UPPERCASE
+========================================================= */
+
+document
+.getElementById("lobbyCode")
+.addEventListener("input", (event) => {
+
+event.target.value =
+event.target.value
+.toUpperCase()
+.replace(/[^A-Z0-9]/g, "");
+
+});
+
+
+
+</script>
+<button id="musicToggle" type="button" class="music-toggle">
+<span class="music-icon">🎵</span>
+<span class="music-text">MUSIC OFF</span>
+</button>
+<script>
+/*
+* The music actually belongs to index.html.
+* setup.html communicates with the parent page.
+*/
+
+document.addEventListener("DOMContentLoaded", function () {
+
+const button = document.getElementById("musicToggle");
+
+if (!button) {
+console.error("Music button not found.");
+return;
+}
+
+const icon = button.querySelector(".music-icon");
+const text = button.querySelector(".music-text");
+
+
+// =================================================
+// UPDATE MUSIC BUTTON
+// =================================================
+
+function updateMusicButton(isPlaying) {
+
+if (isPlaying) {
+
+button.classList.remove("music-off");
+button.classList.add("music-on");
+
+icon.textContent = "🎵";
+text.textContent = "MUSIC ON";
+
+} else {
+
+button.classList.remove("music-on");
+button.classList.add("music-off");
+
+icon.textContent = "🔇";
+text.textContent = "MUSIC OFF";
+}
+}
+
+
+// =================================================
+// ASK INDEX.HTML FOR CURRENT MUSIC STATE
+// =================================================
+
+window.parent.postMessage(
+{
+type: "getMusicState"
+},
+"*"
+);
+
+
+// =================================================
+// RECEIVE MUSIC STATE FROM INDEX.HTML
+// =================================================
+
+window.addEventListener("message", function (event) {
+
+if (!event.data) {
+return;
+}
+
+if (event.data.type === "musicState") {
+
+updateMusicButton(
+event.data.playing
+);
+
+}
+
+});
+
+
+// =================================================
+// MUSIC BUTTON
+// =================================================
+
+button.addEventListener("click", function (event) {
+
+event.preventDefault();
+event.stopPropagation();
+
+window.parent.postMessage(
+{
+type: "toggleMusic"
+},
+"*"
+);
+
+});
+
+});
+
+
+
+</script>
+
+</body>
+</html>
