@@ -37,22 +37,59 @@ const MINIMUM_POKEMON_COST = 20; // minimum base price a Pokémon can have (rand
 // PROFILE PICTURES (put these files in public/images/avatars/)
 // ======================================================
 
-const AVATAR_FILES = [
-    "avatar-01.png",
-    "avatar-02.png",
-    "avatar-03.png",
-    "avatar-04.png",
-    "avatar-05.png",
-    "avatar-06.png",
-    "avatar-07.png",
-    "avatar-08.png",
-    "avatar-09.png",
-    "avatar-10.png",
-    "avatar-11.png",
-    "avatar-12.png"
-];
+const AVATAR_DIR = path.join(
+    __dirname,
+    "public",
+    "images",
+    "avatars"
+);
+
+const AVATAR_EXT = new Set([
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".gif"
+]);
+
+function listAvatarFiles() {
+    try {
+        const fs = require("fs");
+        if (!fs.existsSync(AVATAR_DIR)) {
+            return [];
+        }
+        return fs
+            .readdirSync(AVATAR_DIR)
+            .filter(f => {
+                const ext = path
+                    .extname(f)
+                    .toLowerCase();
+                return AVATAR_EXT.has(ext);
+            })
+            .sort((a, b) =>
+                a.localeCompare(b, undefined, {
+                    numeric: true
+                })
+            );
+    } catch (e) {
+        console.log(
+            "Avatar list failed:",
+            e.message
+        );
+        return [];
+    }
+}
+
+// Refreshed on demand so new files in the folder appear automatically
+function getAvatarFiles() {
+    const files = listAvatarFiles();
+    return files.length
+        ? files
+        : ["avatar-01.png"];
+}
 
 function pickRandomAvatar(lobby) {
+    const AVATAR_FILES = getAvatarFiles();
     const used = new Set(
         (lobby?.players || [])
             .map(p => p.avatar)
@@ -72,6 +109,11 @@ function pickRandomAvatar(lobby) {
         crypto.randomInt(pool.length)
     ];
 }
+
+// Public API so the client can list avatars dynamically
+app.get("/api/avatars", (req, res) => {
+    res.json({ avatars: getAvatarFiles() });
+});
 
 // ======================================================
 // POKEMON DATA
@@ -112,28 +154,45 @@ function refillPokemonDeck() {
     );
 }
 
-function buildAuctionPool(playerCount) {
-    if (!pokemonList.length) {
+const REGION_MAX_IDS = {
+    Kanto: 151,
+    Johto: 251,
+    Hoenn: 386,
+    Sinnoh: 493,
+    Unova: 649,
+    Kalos: 721,
+    Alola: 809,
+    Galar: 905,
+    Paldea: 1025
+};
+
+const REGION_OPTIONS = Object.keys(REGION_MAX_IDS);
+
+function getEligiblePokemon(regionMaxId) {
+    const maxId = Number(regionMaxId) || REGION_MAX_IDS.Paldea;
+    return pokemonList.filter(
+        p => p && Number(p.id) <= maxId
+    );
+}
+
+function buildAuctionPool(playerCount, regionMaxId) {
+    const eligible = getEligiblePokemon(regionMaxId);
+
+    if (!eligible.length) {
         return [];
     }
 
-    // Enough for full teams + skips, but we pull from the shared fair deck
+    // Enough for full teams + skips from the region-limited set
     const needed = Math.min(
-        pokemonList.length,
+        eligible.length,
         Math.max(
             (Number(playerCount) || 2) * 12,
             48
         )
     );
 
-    const selected = [];
-
-    while (selected.length < needed) {
-        if (pokemonDeck.length === 0) {
-            refillPokemonDeck();
-        }
-        selected.push(pokemonDeck.pop());
-    }
+    const shuffled = shufflePokemon([...eligible]);
+    const selected = shuffled.slice(0, needed);
 
     // Fresh base prices for this auction only (clues unchanged)
     return selected.map(p => ({
@@ -154,207 +213,171 @@ function randomBasePrice() {
 // POKEMON CLUE GENERATOR
 // ======================================================
 
+function getPokemonRegion(id) {
+    const n = Number(id) || 0;
+    if (n >= 1 && n <= 151) return "Kanto";
+    if (n >= 152 && n <= 251) return "Johto";
+    if (n >= 252 && n <= 386) return "Hoenn";
+    if (n >= 387 && n <= 493) return "Sinnoh";
+    if (n >= 494 && n <= 649) return "Unova";
+    if (n >= 650 && n <= 721) return "Kalos";
+    if (n >= 722 && n <= 809) return "Alola";
+    if (n >= 810 && n <= 905) return "Galar";
+    if (n >= 906) return "Paldea";
+    return "Unknown";
+}
+
 function generateClues(data) {
+    // Colour, type(s), region + one physical-trait clue.
     const clues = [];
 
-    const shapeMap = {
-        squiggle: "Its body has a somewhat unusual shape.",
-        quadruped: "It moves on four legs.",
+    if (data.color) {
+        const colorName =
+            data.color.charAt(0).toUpperCase() +
+            data.color.slice(1);
+        clues.push(
+            `This Pokémon is mainly ${colorName} in colour.`
+        );
+    }
+
+    const typeList = Array.isArray(data.types)
+        ? data.types.filter(Boolean)
+        : data.type
+          ? [data.type]
+          : [];
+
+    if (typeList.length === 1) {
+        const t =
+            typeList[0].charAt(0).toUpperCase() +
+            typeList[0].slice(1);
+        clues.push(`It is a ${t}-type Pokémon.`);
+    } else if (typeList.length > 1) {
+        const formatted = typeList
+            .map(
+                t =>
+                    t.charAt(0).toUpperCase() +
+                    t.slice(1)
+            )
+            .join(" / ");
+        clues.push(
+            `It is a ${formatted}-type Pokémon.`
+        );
+    }
+
+    const region =
+        data.region || getPokemonRegion(data.id);
+    if (region && region !== "Unknown") {
+        clues.push(
+            `It originates from the ${region} region.`
+        );
+    }
+
+    // Physical trait clue (shape + description keywords) — no names/stats
+    const traitClues = [];
+    const shape = (data.shape || "").toLowerCase();
+    const desc = (data.description || "").toLowerCase();
+
+    const shapeTraits = {
+        wings: "It has prominent wings.",
+        two_wings: "It has prominent wings.",
+        bug_wings: "It has insect-like wings.",
+        armor: "Its body looks armored or shelled.",
+        quadruped: "It walks on four legs.",
         humanoid: "Its body shape is somewhat humanoid.",
-        wings: "It has a body shape suited for flight.",
-        serpentine: "Its body has a long, snake-like shape.",
+        serpentine: "Its body is long and snake-like.",
         fish: "Its body resembles a fish.",
-        bug_wings: "Its body has features associated with insects.",
-        armor: "Its body has a sturdy or armored appearance.",
         ball: "Its body is roughly round.",
-        upright: "It has an upright body shape.",
-        blob: "Its body has a soft, rounded appearance.",
-        legless: "It does not have visible legs.",
-        two_wings: "It has prominent wings."
+        blob: "Its body has a soft, rounded look.",
+        legless: "It has no visible legs.",
+        upright: "It stands in an upright posture.",
+        arms: "It has noticeable arms.",
+        legs: "It has distinct legs.",
+        heads: "Its head is a notable feature.",
+        tentacles: "It has tentacle-like features.",
+        squiggle: "Its body has an unusual, winding shape."
     };
 
-    if (data.color) {
-        clues.push(
-            `This Pokémon is mainly ${data.color} in colour.`
-        );
+    if (shape && shapeTraits[shape]) {
+        traitClues.push(shapeTraits[shape]);
     }
 
     if (
-        data.shape &&
-        shapeMap[data.shape]
+        desc.includes("claw") ||
+        desc.includes("pincer")
     ) {
-        clues.push(
-            shapeMap[data.shape]
-        );
-    }
-
-    if (data.height !== undefined) {
-        if (data.height <= 5) {
-            clues.push(
-                "This Pokémon is relatively small."
-            );
-        } else if (data.height >= 15) {
-            clues.push(
-                "This Pokémon is very large."
-            );
-        } else {
-            clues.push(
-                "This Pokémon has an average-sized body."
-            );
-        }
-    }
-
-    if (data.weight !== undefined) {
-        if (data.weight >= 1000) {
-            clues.push(
-                "This Pokémon is extremely heavy."
-            );
-        } else if (data.weight >= 500) {
-            clues.push(
-                "This Pokémon has considerable weight."
-            );
-        }
-    }
-
-    if (data.habitat) {
-        const habitatMap = {
-            cave: "It is associated with caves.",
-            forest: "It is associated with forests.",
-            grassland: "It is associated with grasslands.",
-            mountain: "It is associated with mountains.",
-            rare: "It is considered a rare Pokémon.",
-            rough_terrain: "It is associated with rough terrain.",
-            sea: "It is associated with the sea.",
-            urban: "It can be associated with urban areas.",
-            waters_edge: "It is associated with the water's edge."
-        };
-
-        if (
-            habitatMap[data.habitat]
-        ) {
-            clues.push(
-                habitatMap[data.habitat]
-            );
-        }
-    }
-
-    const description =
-        (data.description || "").toLowerCase();
-
-    if (
-        description.includes("fang") ||
-        description.includes("teeth") ||
-        description.includes("tooth")
-    ) {
-        clues.push(
-            "It is known for having sharp teeth or fangs."
-        );
-    }
-
-    if (
-        description.includes("claw") ||
-        description.includes("pincer")
-    ) {
-        clues.push(
+        traitClues.push(
             "It has sharp claws or pincers."
         );
     }
-
-    if (description.includes("horn")) {
-        clues.push(
-            "It has a noticeable horn."
+    if (
+        desc.includes("horn") ||
+        desc.includes("antler")
+    ) {
+        traitClues.push(
+            "It has a noticeable horn or antler."
         );
     }
-
-    if (description.includes("tail")) {
-        clues.push(
+    if (
+        desc.includes("fang") ||
+        desc.includes("teeth") ||
+        desc.includes("tooth")
+    ) {
+        traitClues.push(
+            "It is known for sharp teeth or fangs."
+        );
+    }
+    if (desc.includes("tail")) {
+        traitClues.push(
             "Its tail is an important feature."
         );
     }
-
     if (
-        description.includes("wing") ||
-        description.includes("fly") ||
-        description.includes("flying")
+        desc.includes("wing") ||
+        desc.includes("wings")
     ) {
-        clues.push(
-            "It has a strong connection with flying."
+        traitClues.push(
+            "It has wings suited for the air."
+        );
+    }
+    if (
+        desc.includes("shell") ||
+        desc.includes("armor") ||
+        desc.includes("armour") ||
+        desc.includes("hard")
+    ) {
+        traitClues.push(
+            "Parts of its body appear hard or shell-like."
+        );
+    }
+    if (
+        desc.includes("fur") ||
+        desc.includes("wool") ||
+        desc.includes("mane")
+    ) {
+        traitClues.push(
+            "It has fur, wool, or a mane."
+        );
+    }
+    if (
+        desc.includes("fin") ||
+        desc.includes("scale")
+    ) {
+        traitClues.push(
+            "It has fins or scales."
         );
     }
 
-    if (
-        description.includes("fire") ||
-        description.includes("flame")
-    ) {
-        clues.push(
-            "Fire is associated with this Pokémon."
-        );
+    // One unique physical trait max so it stays a clue, not a giveaway
+    const uniqueTraits = [...new Set(traitClues)];
+    if (uniqueTraits.length > 0) {
+        const pick =
+            uniqueTraits[
+                crypto.randomInt(uniqueTraits.length)
+            ];
+        clues.push(pick);
     }
 
-    if (
-        description.includes("water") ||
-        description.includes("sea") ||
-        description.includes("ocean")
-    ) {
-        clues.push(
-            "Water is strongly associated with this Pokémon."
-        );
-    }
-
-    if (
-        description.includes("electric") ||
-        description.includes("thunder") ||
-        description.includes("lightning")
-    ) {
-        clues.push(
-            "Electricity is associated with this Pokémon."
-        );
-    }
-
-    if (
-        description.includes("dark") ||
-        description.includes("night") ||
-        description.includes("shadow")
-    ) {
-        clues.push(
-            "Darkness or shadows are associated with it."
-        );
-    }
-
-    if (
-        description.includes("sleep") ||
-        description.includes("dream")
-    ) {
-        clues.push(
-            "It has an association with sleep or dreams."
-        );
-    }
-
-    if (
-        description.includes("poison") ||
-        description.includes("toxic")
-    ) {
-        clues.push(
-            "Poison is associated with this Pokémon."
-        );
-    }
-
-    if (
-        description.includes("strong") ||
-        description.includes("powerful") ||
-        description.includes("strength")
-    ) {
-        clues.push(
-            "It is known for considerable strength."
-        );
-    }
-
-    const uniqueClues =
-        [...new Set(clues)];
-
-    shufflePokemon(uniqueClues);
-
-    return uniqueClues.slice(0, 4);
+    return clues;
 }
 
 // ======================================================
@@ -416,10 +439,52 @@ async function loadPokemonData() {
     console.log("Loading Pokémon data from PokeAPI...");
     console.log("--------------------------------");
 
+    // Try cache first for fast restarts
+    const fs = require("fs");
+    const cachePath = path.join(__dirname, "pokemon-cache.json");
+    try {
+        if (fs.existsSync(cachePath)) {
+            const cached = JSON.parse(
+                fs.readFileSync(cachePath, "utf8")
+            );
+            if (Array.isArray(cached) && cached.length > 200) {
+                pokemonList = cached;
+                pokemonDataReady = true;
+                console.log(
+                    `Loaded ${pokemonList.length} Pokémon from cache.`
+                );
+                console.log("Pokémon data is ready.");
+                console.log("--------------------------------");
+                return;
+            }
+        }
+    } catch (e) {
+        console.log("Cache read failed, fetching from API...");
+    }
+
     const loadedPokemon = [];
 
-    const TOTAL_POKEMON = 251;
-    const BATCH_SIZE = 10;
+    // Discover total species count from PokeAPI
+    let TOTAL_POKEMON = 1025;
+    try {
+        const meta = await fetchWithRetry(
+            "https://pokeapi.co/api/v2/pokemon-species?limit=1"
+        );
+        if (meta && meta.count) {
+            TOTAL_POKEMON = Number(meta.count) || 1025;
+        }
+    } catch (e) {
+        console.log(
+            "Could not read species count, defaulting to",
+            TOTAL_POKEMON
+        );
+    }
+
+    console.log(
+        `Total species to load: ${TOTAL_POKEMON}`
+    );
+
+    const BATCH_SIZE = 15;
 
     for (
         let start = 1;
@@ -512,6 +577,22 @@ async function loadPokemonData() {
                                 pokemon.types.length > 0
                                     ? pokemon.types[0].type.name
                                     : null,
+
+                            types:
+                                Array.isArray(pokemon.types)
+                                    ? pokemon.types
+                                          .map(t =>
+                                              t &&
+                                              t.type &&
+                                              t.type.name
+                                                  ? t.type.name
+                                                  : null
+                                          )
+                                          .filter(Boolean)
+                                    : [],
+
+                            region:
+                                getPokemonRegion(pokemon.id),
 
                             officialArtwork:
                                 pokemon.sprites &&
@@ -611,6 +692,28 @@ async function loadPokemonData() {
 
     pokemonDataReady =
         true;
+
+    // Persist cache for faster restarts
+    try {
+        const fs = require("fs");
+        const cachePath = path.join(
+            __dirname,
+            "pokemon-cache.json"
+        );
+        fs.writeFileSync(
+            cachePath,
+            JSON.stringify(pokemonList)
+        );
+        console.log(
+            "Pokémon cache written:",
+            cachePath
+        );
+    } catch (e) {
+        console.log(
+            "Could not write Pokémon cache:",
+            e.message
+        );
+    }
 
     console.log("--------------------------------");
     console.log(
@@ -719,6 +822,9 @@ function sendLobbyUpdate(code) {
 
             maxPlayers:
                 lobby.maxPlayers,
+
+            regionMaxId:
+                lobby.regionMaxId || 251,
 
             hostPlayerId:
                 lobby.hostPlayerId,
@@ -1024,7 +1130,69 @@ function startNextPokemon(code) {
         return;
     }
 
-    // No more Pokémon left
+    // Pool exhausted but not everyone has a full team —
+    // reshuffle a fresh pool and continue (never end early).
+    const stillNeed = lobby.players.some(
+        p => p.pokemon.length < TEAM_SIZE
+    );
+
+    if (stillNeed) {
+        lobby.poolReshuffles =
+            (lobby.poolReshuffles || 0) + 1;
+
+        console.log(
+            "Pokémon pool exhausted — reshuffling for lobby",
+            code,
+            "(pass",
+            lobby.poolReshuffles + ")"
+        );
+
+        let pool = buildAuctionPool(
+            lobby.players.length || lobby.maxPlayers,
+            lobby.regionMaxId
+        );
+
+        // After a few full cycles, force cheaper base prices
+        // so remaining trainers can still complete their teams
+        if (lobby.poolReshuffles >= 2 && pool.length) {
+            pool = pool.map(p => ({
+                ...p,
+                basePrice: Math.min(
+                    p.basePrice || 20,
+                    MINIMUM_POKEMON_COST
+                )
+            }));
+        }
+
+        lobby.auctionPokemon = pool;
+        lobby.auctionIndex = 0;
+
+        if (
+            !lobby.auctionPokemon ||
+            lobby.auctionPokemon.length === 0
+        ) {
+            console.log(
+                "No eligible Pokémon available — cannot continue auction",
+                code
+            );
+            finishAuction(code);
+            return;
+        }
+
+        // Safety: avoid infinite tight loops if somehow nobody can bid
+        if (lobby.poolReshuffles > 20) {
+            console.log(
+                "Too many reshuffles — ending auction for lobby",
+                code
+            );
+            finishAuction(code);
+            return;
+        }
+
+        startNextPokemon(code);
+        return;
+    }
+
     finishAuction(code);
 }
 
@@ -1198,6 +1366,10 @@ function finishPokemon(code) {
 
                         winnerId:
                             winner.playerId,
+
+                        winnerAvatar:
+                            winner.avatar ||
+                            null,
 
                         price:
                             price,
@@ -1528,7 +1700,8 @@ function removePlayer(code, playerId) {
             lobby.auctionIndex = 0;
             lobby.auction = null;
             lobby.auctionPokemon = buildAuctionPool(
-                lobby.players.length || lobby.maxPlayers
+                lobby.players.length || lobby.maxPlayers,
+                lobby.regionMaxId
             );
 
             lobby.players.forEach(p => {
@@ -1639,6 +1812,16 @@ io.on("connection", socket => {
                 return;
             }
 
+            const requestedAvatar =
+                typeof data.avatar === "string"
+                    ? data.avatar.trim()
+                    : "";
+
+            const avatar =
+                getAvatarFiles().includes(requestedAvatar)
+                    ? requestedAvatar
+                    : pickRandomAvatar(null);
+
             const code =
                 generateLobbyCode();
 
@@ -1646,8 +1829,14 @@ io.on("connection", socket => {
             // EACH LOBBY GETS ITS OWN RANDOM POKEMON ORDER
             // ==================================================
 
+            const regionMaxId =
+                REGION_MAX_IDS.Johto; // default through Johto
+
             const randomizedPokemon =
-                buildAuctionPool(maxPlayers);
+                buildAuctionPool(
+                    maxPlayers,
+                    regionMaxId
+                );
 
             const lobby = {
                 code:
@@ -1655,6 +1844,9 @@ io.on("connection", socket => {
 
                 maxPlayers:
                     maxPlayers,
+
+                regionMaxId:
+                    regionMaxId,
 
                 hostPlayerId:
                     playerId,
@@ -1668,7 +1860,7 @@ io.on("connection", socket => {
                             name,
 
                         avatar:
-                            pickRandomAvatar(null),
+                            avatar,
 
                         socketId:
                             socket.id,
@@ -1785,7 +1977,12 @@ io.on("connection", socket => {
                 return;
             }
 
-            if (lobby.started) {
+            // Block only during an ACTIVE auction.
+            // After auction finishes (waiting for return), allow rejoin / new join.
+            if (
+                lobby.started &&
+                !lobby.auctionFinished
+            ) {
                 socket.emit(
                     "lobbyError",
                     "Auction already started."
@@ -1817,6 +2014,11 @@ io.on("connection", socket => {
                 return;
             }
 
+            const requestedAvatar =
+                typeof data.avatar === "string"
+                    ? data.avatar.trim()
+                    : "";
+
             if (existing) {
 
                 existing.socketId =
@@ -1827,34 +2029,99 @@ io.on("connection", socket => {
                         name;
                 }
 
-                if (!existing.avatar) {
+                if (
+                    requestedAvatar &&
+                    getAvatarFiles().includes(requestedAvatar)
+                ) {
+                    existing.avatar =
+                        requestedAvatar;
+                } else if (!existing.avatar) {
                     existing.avatar =
                         pickRandomAvatar(lobby);
                 }
 
+                // If post-auction wait, mark them as returned
+                if (lobby.auctionFinished) {
+                    existing.returnedToLobby = true;
+                    existing.money = STARTING_MONEY;
+                    existing.pokemon = [];
+                }
+
             } else {
 
-                lobby.players.push(
-                    {
-                        playerId:
-                            playerId,
+                // New player joining post-auction or pre-start
+                if (
+                    lobby.started &&
+                    !lobby.auctionFinished
+                ) {
+                    socket.emit(
+                        "lobbyError",
+                        "Auction already started."
+                    );
+                    return;
+                }
 
-                        name:
-                            name,
+                const avatar =
+                    getAvatarFiles().includes(requestedAvatar)
+                        ? requestedAvatar
+                        : pickRandomAvatar(lobby);
 
-                        avatar:
-                            pickRandomAvatar(lobby),
+                const newPlayer = {
+                    playerId:
+                        playerId,
 
-                        socketId:
-                            socket.id,
+                    name:
+                        name,
 
-                        money:
-                            STARTING_MONEY,
+                    avatar:
+                        avatar,
 
-                        pokemon:
-                            []
-                    }
-                );
+                    socketId:
+                        socket.id,
+
+                    money:
+                        STARTING_MONEY,
+
+                    pokemon:
+                        [],
+
+                    returnedToLobby:
+                        !!lobby.auctionFinished
+                };
+
+                lobby.players.push(newPlayer);
+            }
+
+            // If post-auction and everyone is now back, unlock lobby
+            if (lobby.auctionFinished) {
+                const allBack =
+                    lobby.players.every(
+                        p => p.returnedToLobby === true
+                    );
+
+                if (allBack) {
+                    lobby.started = false;
+                    lobby.auctionFinished = false;
+                    lobby.auctionIndex = 0;
+                    lobby.auction = null;
+                    lobby.auctionPokemon =
+                        buildAuctionPool(
+                            lobby.players.length ||
+                                lobby.maxPlayers,
+                            lobby.regionMaxId
+                        );
+
+                    lobby.players.forEach(p => {
+                        p.returnedToLobby = false;
+                        p.money = STARTING_MONEY;
+                        p.pokemon = [];
+                    });
+
+                    console.log(
+                        "All players ready after rejoin — lobby unlocked:",
+                        code
+                    );
+                }
             }
 
             socket.playerId =
@@ -2065,6 +2332,66 @@ io.on("connection", socket => {
     );
 
     // ==================================================
+    // CHANGE REGION LIMIT (host only)
+    // ==================================================
+
+    socket.on(
+        "changeRegion",
+        data => {
+            if (!data) return;
+
+            const code =
+                String(data.lobbyCode || "")
+                    .trim()
+                    .toUpperCase();
+
+            const playerId = data.playerId;
+            const regionName =
+                String(data.region || "").trim();
+
+            const lobby = lobbies.get(code);
+            if (!lobby) return;
+
+            if (lobby.hostPlayerId !== playerId) {
+                return;
+            }
+
+            // Allow before game OR while waiting after auction
+            if (lobby.started && !lobby.auctionFinished) {
+                return;
+            }
+
+            if (!REGION_MAX_IDS[regionName]) {
+                socket.emit(
+                    "lobbyError",
+                    "Invalid region selection."
+                );
+                return;
+            }
+
+            lobby.regionMaxId =
+                REGION_MAX_IDS[regionName];
+
+            // Rebuild pool for the new region limit
+            lobby.auctionPokemon = buildAuctionPool(
+                lobby.players.length || lobby.maxPlayers,
+                lobby.regionMaxId
+            );
+
+            console.log(
+                "Region limit changed:",
+                code,
+                "->",
+                regionName,
+                "(max id",
+                lobby.regionMaxId + ")"
+            );
+
+            sendLobbyUpdate(code);
+        }
+    );
+
+    // ==================================================
     // RETURN TO LOBBY (RESET AFTER AUCTION)
     // ==================================================
 
@@ -2127,7 +2454,8 @@ io.on("connection", socket => {
                 lobby.auctionIndex = 0;
                 lobby.auction = null;
                 lobby.auctionPokemon = buildAuctionPool(
-                    lobby.players.length || lobby.maxPlayers
+                    lobby.players.length || lobby.maxPlayers,
+                    lobby.regionMaxId
                 );
 
                 lobby.players.forEach(p => {
@@ -2227,7 +2555,8 @@ io.on("connection", socket => {
                     lobby.auctionIndex = 0;
                     lobby.auction = null;
                     lobby.auctionPokemon = buildAuctionPool(
-                        lobby.players.length || lobby.maxPlayers
+                        lobby.players.length || lobby.maxPlayers,
+                        lobby.regionMaxId
                     );
 
                     lobby.players.forEach(p => {
@@ -2476,11 +2805,13 @@ io.on("connection", socket => {
 
             // Fresh random Pokémon pool every auction
             lobby.auctionIndex = 0;
+            lobby.poolReshuffles = 0;
             lobby.auction = null;
             lobby.auctionPokemon =
                 buildAuctionPool(
                     lobby.players.length ||
-                    lobby.maxPlayers
+                    lobby.maxPlayers,
+                    lobby.regionMaxId
                 );
 
             console.log("--------------------------------");
